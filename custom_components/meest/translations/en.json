@@ -1,0 +1,174 @@
+{
+  "title": "Meest",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Meest",
+        "description": "A Meest account can only be signed in one place at a time. Choosing **Account** signs you out of the Meest app, and signing back in on the app disconnects Home Assistant until you reconnect it here. **Tracking codes** needs no account, so nothing gets signed out — but you add each parcel number yourself instead of them appearing automatically. The **Account** source has not been confirmed against a real account yet, so treat it as experimental and please report anything that looks wrong.",
+        "menu_options": {
+          "account": "Account (automatic import)",
+          "tracking": "Tracking codes"
+        }
+      },
+      "account": {
+        "title": "Set up Meest account",
+        "description": "Sign in with the phone number this Meest account uses, in international form (for example +380671234567). Your password is never stored.\n\nA Meest account has one sign-in: setting this up signs the mobile app out, and signing in to the app later disconnects Home Assistant until you reconnect it here. Only parcels the account itself owns are imported; parcels you follow by number in the app stay on your phone. This source has not been confirmed against a real Meest account yet: it may show fewer fields than expected, or stumble on an answer it has not seen. Please report anything that looks wrong.",
+        "data_description": {
+          "login": "An account created on another Meest brand's website, such as MeestPost, is a different account and will not be accepted here."
+        },
+        "data": {
+          "login": "Login",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Meest sign-in expired",
+        "description": "Meest no longer accepts the stored sign-in for {login}. This usually means the account was signed in somewhere else — signing in to the Meest app replaces the session Home Assistant stored. Enter that account's password again to reconnect.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Unable to sign in with these credentials.",
+      "cannot_connect": "Unable to connect to Meest. Please try again."
+    },
+    "abort": {
+      "already_configured": "This Meest source is already set up.",
+      "reauth_successful": "Meest was reauthenticated successfully.",
+      "unique_id_mismatch": "That sign-in is for a different Meest account. Sign in with the account this entry was set up for."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Meest options",
+        "menu_options": {
+          "incoming_parcels": "Incoming parcels",
+          "outgoing_parcels": "Outgoing parcels",
+          "settings": "Settings"
+        }
+      },
+      "incoming_parcels": {
+        "title": "Manage incoming parcels",
+        "description": "Tracking numbers of parcels you are expecting. A tracking number alone cannot tell a parcel you sent from one you are receiving, so file each one in the list it belongs to.",
+        "data": {
+          "tracking_codes": "Tracking codes"
+        }
+      },
+      "outgoing_parcels": {
+        "title": "Manage outgoing parcels",
+        "description": "Tracking numbers of parcels you sent. They are counted and reported separately, so they stay out of your incoming parcel count.",
+        "data": {
+          "tracking_codes": "Tracking codes"
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "data": {
+          "delivered_filter_type": "Delivered parcels: filter by",
+          "delivered_filter_amount": "Delivered parcels: amount",
+          "include_history": "Include status history"
+        },
+        "data_description": {
+          "delivered_filter_type": "Show delivered parcels from the last X days, or limit to the X most recent.",
+          "delivered_filter_amount": "Number of days or parcels to show.",
+          "include_history": "Add a per-parcel history attribute listing each status update (timestamp, status, original text). Off by default."
+        }
+      }
+    }
+  },
+  "selector": {
+    "delivered_filter_type": {
+      "options": {
+        "days": "Days",
+        "parcels": "Number of parcels"
+      }
+    },
+    "direction": {
+      "options": {
+        "incoming": "Incoming",
+        "outgoing": "Outgoing"
+      }
+    }
+  },
+  "services": {
+    "track_parcel": {
+      "name": "Track parcel",
+      "description": "Start tracking a parcel by its Meest tracking number.",
+      "fields": {
+        "tracking_code": {
+          "name": "Tracking code",
+          "description": "The Meest tracking number."
+        },
+        "direction": {
+          "name": "Direction",
+          "description": "Whether you are receiving the parcel or sending it. Track the same code again with the other direction to move it."
+        }
+      }
+    },
+    "untrack_parcel": {
+      "name": "Untrack parcel",
+      "description": "Stop tracking a parcel by its Meest tracking number.",
+      "fields": {
+        "tracking_code": {
+          "name": "Tracking code",
+          "description": "The Meest tracking number to stop tracking."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "A parcel was registered",
+      "parcel_status_changed": "A parcel's status changed",
+      "parcel_delivered": "A parcel was delivered",
+      "parcel_delivery_time_changed": "A parcel's expected delivery time changed",
+      "outgoing_parcel_status_changed": "An outgoing parcel's status changed",
+      "outgoing_parcel_delivered": "An outgoing parcel was delivered"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Refresh"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Deliveries"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Incoming parcels",
+        "unit_of_measurement": "parcels"
+      },
+      "next_delivery": {
+        "name": "Next delivery"
+      },
+      "awaiting_pickup": {
+        "name": "Awaiting pickup",
+        "unit_of_measurement": "parcels"
+      },
+      "delivered_parcels": {
+        "name": "Delivered parcels",
+        "unit_of_measurement": "parcels"
+      },
+      "outgoing_parcels": {
+        "name": "Outgoing parcels",
+        "unit_of_measurement": "parcels"
+      },
+      "outgoing_delivered_parcels": {
+        "name": "Outgoing delivered parcels",
+        "unit_of_measurement": "parcels"
+      },
+      "last_update": {
+        "name": "Last successful update"
+      },
+      "parcel": {
+        "name": "Parcel {barcode}"
+      }
+    }
+  }
+}

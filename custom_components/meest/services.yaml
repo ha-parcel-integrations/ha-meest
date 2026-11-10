@@ -1,0 +1,23 @@
+track_parcel:
+  fields:
+    tracking_code:
+      required: true
+      example: "AB1234567CD00010G"
+      selector:
+        text:
+    direction:
+      default: incoming
+      selector:
+        select:
+          options:
+            - "incoming"
+            - "outgoing"
+          translation_key: direction
+
+untrack_parcel:
+  fields:
+    tracking_code:
+      required: true
+      example: "AB1234567CD00010G"
+      selector:
+        text:

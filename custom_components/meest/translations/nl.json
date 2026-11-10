@@ -1,0 +1,174 @@
+{
+  "title": "Meest",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Meest instellen",
+        "description": "Een Meest-account kan maar op één plek tegelijk ingelogd zijn. Kies je **Account**, dan word je uitgelogd in de Meest-app, en log je daarna weer in op de app, dan verliest Home Assistant de verbinding tot je hem hier opnieuw koppelt. **Trackingcodes** heeft geen account nodig, dus daar wordt nergens iets uitgelogd — maar je voegt elk pakketnummer zelf toe in plaats van dat ze vanzelf verschijnen. De bron **Account** is nog niet bevestigd tegen een echt account, dus beschouw hem als experimenteel en meld het gerust als er iets niet klopt.",
+        "menu_options": {
+          "account": "Account (automatisch importeren)",
+          "tracking": "Trackingcodes"
+        }
+      },
+      "account": {
+        "title": "Meest-account instellen",
+        "description": "Meld je aan met het telefoonnummer van dit Meest-account, in internationale notatie (bijvoorbeeld +380671234567). Je wachtwoord wordt niet opgeslagen.\n\nEen Meest-account heeft één aanmelding: dit instellen logt de mobiele app uit, en later inloggen op de app verbreekt de verbinding met Home Assistant tot je hem hier opnieuw koppelt. Alleen pakketten die het account zelf bezit worden geïmporteerd; pakketten die je in de app op nummer volgt, blijven op je telefoon staan. Deze bron is nog niet bevestigd tegen een echt Meest-account: hij kan minder velden tonen dan verwacht, of struikelen over een antwoord dat hij nog niet kent. Meld het gerust als er iets niet klopt.",
+        "data_description": {
+          "login": "Een account dat je op de website van een ander Meest-merk hebt gemaakt, zoals MeestPost, is een ander account en wordt hier niet geaccepteerd."
+        },
+        "data": {
+          "login": "Inlognaam",
+          "password": "Wachtwoord"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Meest-aanmelding verlopen",
+        "description": "Meest accepteert de opgeslagen aanmelding voor {login} niet meer. Meestal betekent dit dat het account ergens anders is ingelogd — inloggen op de Meest-app vervangt de sessie die Home Assistant had. Voer het wachtwoord van dat account opnieuw in om opnieuw te koppelen.",
+        "data": {
+          "password": "Wachtwoord"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Aanmelden met deze gegevens is niet gelukt.",
+      "cannot_connect": "Kan geen verbinding maken met Meest. Probeer het opnieuw."
+    },
+    "abort": {
+      "already_configured": "Deze Meest-bron is al ingesteld.",
+      "reauth_successful": "Opnieuw inloggen bij Meest is geslaagd.",
+      "unique_id_mismatch": "Die aanmelding hoort bij een ander Meest-account. Meld je aan met het account waarvoor deze invoer is ingesteld."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Meest-opties",
+        "menu_options": {
+          "incoming_parcels": "Inkomende pakketten",
+          "outgoing_parcels": "Uitgaande pakketten",
+          "settings": "Instellingen"
+        }
+      },
+      "incoming_parcels": {
+        "title": "Inkomende pakketten beheren",
+        "description": "Trackingnummers van pakketten die je verwacht. Aan een trackingnummer alleen is niet te zien of je een pakket verstuurt of ontvangt, dus zet elk nummer in de juiste lijst.",
+        "data": {
+          "tracking_codes": "Trackingcodes"
+        }
+      },
+      "outgoing_parcels": {
+        "title": "Uitgaande pakketten beheren",
+        "description": "Trackingnummers van pakketten die je hebt verstuurd. Ze worden apart geteld en gerapporteerd, zodat ze niet meetellen bij je inkomende pakketten.",
+        "data": {
+          "tracking_codes": "Trackingcodes"
+        }
+      },
+      "settings": {
+        "title": "Instellingen",
+        "data": {
+          "delivered_filter_type": "Bezorgde pakketten: filteren op",
+          "delivered_filter_amount": "Bezorgde pakketten: aantal",
+          "include_history": "Statusgeschiedenis meenemen"
+        },
+        "data_description": {
+          "delivered_filter_type": "Toon bezorgde pakketten van de afgelopen X dagen, of beperk tot de X meest recente.",
+          "delivered_filter_amount": "Aantal dagen of pakketten om te tonen.",
+          "include_history": "Voegt per pakket een geschiedenis-attribuut toe met elke statusupdate (tijdstip, status, originele tekst). Staat standaard uit."
+        }
+      }
+    }
+  },
+  "selector": {
+    "delivered_filter_type": {
+      "options": {
+        "days": "Dagen",
+        "parcels": "Aantal pakketten"
+      }
+    },
+    "direction": {
+      "options": {
+        "incoming": "Inkomend",
+        "outgoing": "Uitgaand"
+      }
+    }
+  },
+  "services": {
+    "track_parcel": {
+      "name": "Pakket volgen",
+      "description": "Begin met het volgen van een pakket op basis van het Meest-trackingnummer.",
+      "fields": {
+        "tracking_code": {
+          "name": "Trackingcode",
+          "description": "Het Meest-trackingnummer."
+        },
+        "direction": {
+          "name": "Richting",
+          "description": "Of je het pakket ontvangt of verstuurt. Volg dezelfde code opnieuw met de andere richting om het te verplaatsen."
+        }
+      }
+    },
+    "untrack_parcel": {
+      "name": "Pakket niet meer volgen",
+      "description": "Stop met het volgen van een pakket op basis van het Meest-trackingnummer.",
+      "fields": {
+        "tracking_code": {
+          "name": "Trackingcode",
+          "description": "Het Meest-trackingnummer dat niet meer gevolgd moet worden."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "Een pakket is aangemeld",
+      "parcel_status_changed": "De status van een pakket is gewijzigd",
+      "parcel_delivered": "Een pakket is bezorgd",
+      "parcel_delivery_time_changed": "De verwachte bezorgtijd van een pakket is gewijzigd",
+      "outgoing_parcel_status_changed": "De status van een uitgaand pakket is gewijzigd",
+      "outgoing_parcel_delivered": "Een uitgaand pakket is bezorgd"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Verversen"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Bezorgingen"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Inkomende pakketten",
+        "unit_of_measurement": "pakketten"
+      },
+      "next_delivery": {
+        "name": "Volgende bezorging"
+      },
+      "awaiting_pickup": {
+        "name": "Wacht op ophalen",
+        "unit_of_measurement": "pakketten"
+      },
+      "delivered_parcels": {
+        "name": "Bezorgde pakketten",
+        "unit_of_measurement": "pakketten"
+      },
+      "outgoing_parcels": {
+        "name": "Uitgaande pakketten",
+        "unit_of_measurement": "pakketten"
+      },
+      "outgoing_delivered_parcels": {
+        "name": "Bezorgde uitgaande pakketten",
+        "unit_of_measurement": "pakketten"
+      },
+      "last_update": {
+        "name": "Laatste geslaagde update"
+      },
+      "parcel": {
+        "name": "Pakket {barcode}"
+      }
+    }
+  }
+}
