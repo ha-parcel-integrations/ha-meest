@@ -9,7 +9,7 @@
 >
 > 💬 Questions or feedback? Join the discussion on the [Home Assistant community](https://community.home-assistant.io/t/packages-postnl-dhl-nl-dpd-and-gls-parcel-integration/112433/).
 
-A custom Home Assistant integration that tracks your [Meest](https://meest.com) parcels (Ukraine, with Poland, the United States and Canada on the same network). Choose either tracking codes, which need no account, or your own Meest account.
+A custom Home Assistant integration that tracks your [Meest](https://meest.com) parcels in **Ukraine** — both domestic shipments and parcels Meest brings in from abroad, once they are on Meest's own network. Choose either tracking codes, which need no account, or your own Meest account.
 
 > **Pre-release.** Tracking by code has been confirmed on real parcels. The account source has **not** been confirmed against a real account yet, so treat it as experimental: it may show fewer fields than listed below, or fail on a response it has not seen. Unfamiliar answers are logged as warnings with a link to report them.
 
