@@ -58,10 +58,12 @@ def send_code(code: str) -> str:
 
 
 async def _read_capped(response: aiohttp.ClientResponse) -> bytes:
-    body = await response.content.read(MAX_BODY_BYTES + 1)
-    if len(body) > MAX_BODY_BYTES:
-        raise MeestApiError("response too large")
-    return body
+    body = bytearray()
+    async for chunk in response.content.iter_chunked(64 * 1024):
+        body += chunk
+        if len(body) > MAX_BODY_BYTES:
+            raise MeestApiError("response too large")
+    return bytes(body)
 
 
 def _retry_after(response: aiohttp.ClientResponse) -> float | None:

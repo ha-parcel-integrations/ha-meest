@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
-from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 
 import aiohttp
 import pytest
@@ -34,8 +34,14 @@ class _Response:
     def __init__(self, status: int, body: bytes = b"", headers: dict | None = None):
         self.status = status
         self.headers = headers or {}
-        self.content = AsyncMock()
-        self.content.read = AsyncMock(return_value=body)
+        self.content = MagicMock()
+
+        async def _chunks(_size):
+            # Small chunks, so a reader that stops after the first one fails.
+            for start in range(0, len(body), 7):
+                yield body[start : start + 7]
+
+        self.content.iter_chunked = MagicMock(side_effect=_chunks)
 
 
 class _Ctx:
