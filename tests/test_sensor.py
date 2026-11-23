@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
@@ -15,8 +15,14 @@ from custom_components.meest.const import (
     CONF_PARCELS,
     CONF_TRACKING_CODE,
     DOMAIN,
+    ParcelStatus,
 )
-from custom_components.meest.sensor import MeestParcelSensor
+from custom_components.meest.sensor import (
+    MeestAwaitingPickupSensor,
+    MeestEnRouteToPickupPointSensor,
+    MeestNextDeliverySensor,
+    MeestParcelSensor,
+)
 from tests.payloads import CODE, OTHER_CODE, account_record, account_sent_record, row
 
 GET_PARCEL = "custom_components.meest.tracking.api.MeestTrackingClient.async_get_parcel"
@@ -56,8 +62,8 @@ async def test_summary_sensors_and_per_parcel_sensor(hass):
     assert hass.states.get("sensor.meest_delivered_parcels").state == "1"
     assert hass.states.get("sensor.meest_outgoing_parcels").state == "0"
     assert hass.states.get("sensor.meest_last_successful_update").state != "unknown"
-    # no en_route sensor: the tracking source only learns of a pickup point on arrival
-    assert hass.states.get("sensor.meest_en_route_to_pickup_point") is None
+    # the parcel has arrived, so it is awaiting pickup and no longer en route
+    assert hass.states.get("sensor.meest_en_route_to_pickup_point").state == "0"
 
     parcel = hass.states.get(f"sensor.meest_parcel_{CODE.lower()}")
     assert parcel.state == "at_pickup_point"
@@ -171,3 +177,88 @@ async def test_stale_parcel_sensors_are_swept_at_setup_but_summaries_survive(has
     assert registry.async_get(stale.entity_id) is None
     assert registry.async_get(summary.entity_id) is not None
     assert registry.async_get(other_domain.entity_id) is not None
+
+
+def _fake_coordinator(parcels):
+
+    coordinator = MagicMock()
+    coordinator.data = {"incoming_active": parcels}
+    return coordinator
+
+
+def _fake_entry():
+
+    entry = MagicMock()
+    entry.entry_id = "e1"
+    return entry
+
+
+def _fake_parcel(barcode, status, pickup=False, planned_from=None, planned_to=None):
+
+    return {
+        "barcode": barcode,
+        "status": ParcelStatus(status),
+        "pickup": pickup,
+        "planned_from": planned_from,
+        "planned_to": planned_to,
+        "sender": None,
+        "receiver": None,
+    }
+
+
+def test_en_route_and_awaiting_pickup_split_without_overlap():
+
+    parcels = [
+        _fake_parcel("GOING", "in_transit", pickup=True),
+        _fake_parcel("READY", "at_pickup_point", pickup=True),
+        _fake_parcel("BACK", "returning", pickup=True),
+        _fake_parcel("HOME", "in_transit"),
+    ]
+    en_route = MeestEnRouteToPickupPointSensor(
+        _fake_coordinator(parcels), _fake_entry()
+    )
+    awaiting = MeestAwaitingPickupSensor(_fake_coordinator(parcels), _fake_entry())
+    assert en_route.unique_id == "e1_en_route_to_pickup_point"
+    assert [p["barcode"] for p in en_route.extra_state_attributes["parcels"]] == [
+        "GOING"
+    ]
+    assert [p["barcode"] for p in awaiting.extra_state_attributes["parcels"]] == [
+        "READY"
+    ]
+    assert en_route.native_value == 1 and awaiting.native_value == 1
+
+
+def test_next_delivery_skips_a_window_that_has_ended():
+
+    parcels = [
+        _fake_parcel(
+            "OLD",
+            "in_transit",
+            planned_from="2020-01-01T10:00:00+00:00",
+            planned_to="2020-01-01T23:59:59+00:00",
+        ),
+        _fake_parcel("NEW", "in_transit", planned_from="2099-01-01T10:00:00+00:00"),
+    ]
+    sensor = MeestNextDeliverySensor(_fake_coordinator(parcels), _fake_entry())
+    assert sensor.extra_state_attributes["barcode"] == "NEW"
+
+
+async def test_the_pickup_summaries_survive_the_stale_sweep(hass):
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="tracking",
+        data={"source": "tracking"},
+        options={CONF_PARCELS: []},
+    )
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    kept = registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{entry.entry_id}_en_route_to_pickup_point",
+        config_entry=entry,
+    )
+    with patch(GET_PARCEL, new=AsyncMock(return_value=None)):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    assert registry.async_get(kept.entity_id) is not None

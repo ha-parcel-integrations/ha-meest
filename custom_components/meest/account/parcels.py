@@ -10,8 +10,10 @@ import logging
 import re
 from typing import Any
 
+from homeassistant.util import dt as dt_util
+
 from ..const import HISTORY_MAX_EVENTS, ParcelStatus
-from ..parcels import build_parcel, parse_iso
+from ..parcels import build_parcel, is_pickup, parse_iso, planned_window
 from ..status import (
     NEW_ISSUE_URL,
     NON_MOVEMENT_CODES,
@@ -60,6 +62,11 @@ def _combine(day: str | None, clock: Any) -> str | None:
     return f"{day[:10]}T{int(hours):02d}:{minutes}:{seconds or '00'}"
 
 
+def _stamped(value: str | None) -> str | None:
+    """A timestamp with an offset: a naive one gets Home Assistant's zone."""
+    return planned_window(value, None, zone=dt_util.get_default_time_zone())[0]
+
+
 def _window(
     block: dict[str, Any], fallback_day: str | None
 ) -> tuple[str | None, str | None]:
@@ -69,10 +76,9 @@ def _window(
     for key in ("timeFrom", "timeTo"):
         value = block.get(key)
         bounds.append(_timestamp(value) or _combine(day, value))
-    planned_from, planned_to = bounds
-    if planned_from and planned_to and parse_iso(planned_from) == parse_iso(planned_to):
-        planned_to = None
-    return planned_from, planned_to
+    # The account spans several countries, so Home Assistant's zone dates the
+    # naive times.
+    return planned_window(*bounds, zone=dt_util.get_default_time_zone())
 
 
 def _branch_name(block: dict[str, Any]) -> str | None:
@@ -120,13 +126,15 @@ def _sorted_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return dated
 
 
+def _event_status(event: dict[str, Any]) -> ParcelStatus | None:
+    code = clean_code(event.get("statusCode"))
+    mapped = lookup(code) if code not in NON_MOVEMENT_CODES else None
+    return mapped or map_app_code(event.get("appCode"))
+
+
 def _build_history(events: list[dict[str, Any]]) -> list[dict]:
     history: list[dict] = []
     for event in _sorted_events(events):
-        code = clean_code(event.get("statusCode"))
-        mapped = lookup(code) if code not in NON_MOVEMENT_CODES else None
-        if mapped is None:
-            mapped = map_app_code(event.get("appCode"))
         place = ", ".join(
             str(event[k]).strip()
             for k in ("city", "country")
@@ -136,8 +144,8 @@ def _build_history(events: list[dict[str, Any]]) -> list[dict]:
         wording = wording.strip() if isinstance(wording, str) else None
         history.append(
             {
-                "timestamp": _event_time(event),
-                "status": mapped,
+                "timestamp": _stamped(_event_time(event)),
+                "status": _event_status(event),
                 "raw_status": f"{wording} ({place})" if wording and place else wording,
             }
         )
@@ -243,21 +251,31 @@ def normalize_account_parcel(
     estimated = _timestamp(record.get("estimatedDeliveryDate"))
     planned_from, planned_to = _window(block, estimated)
     if planned_from is None and not outgoing:
-        planned_from = estimated
+        planned_from, planned_to = planned_window(
+            estimated, None, zone=dt_util.get_default_time_zone()
+        )
 
     name = record.get("statusName")
     raw_status = name.strip() if isinstance(name, str) and name.strip() else code
+
+    branch = None if outgoing else _branch_name(block)
+    pickup = is_pickup(
+        bool(branch),
+        status,
+        (_event_status(event) for event in events),
+    )
 
     return build_parcel(
         barcode=barcode,
         status=status,
         raw_status=raw_status,
-        delivered_at=_timestamp(record.get("factDeliveryDate")),
+        delivered_at=_stamped(_timestamp(record.get("factDeliveryDate"))),
         sender=_party(record.get("sender")),
         receiver=_party(record.get("receiver")),
         planned_from=planned_from,
         planned_to=planned_to,
-        pickup_point=None if outgoing else _branch_name(block),
+        pickup=pickup,
+        pickup_point=branch,
         history=_build_history(events) if include_history else None,
         raw=record,
     )

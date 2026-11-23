@@ -100,9 +100,9 @@ action id. Decisions worth keeping:
   reference names it the rows belong to someone else's parcel and the lookup
   is inconclusive (keep last-good, show no history). Duplicate scans from two
   feeds are collapsed on timestamp + code + wording + place.
-- Timestamps are the carrier's wall clock with no offset: never localise or
-  stamp a zone. `00:00:00` / `00:00:01` mean "a day without a time" and are
-  emitted as a bare date.
+- Timestamps are the carrier's wall clock with no offset, so they get Home
+  Assistant's zone (see the contract section). `00:00:00` / `00:00:01` mean "a
+  day without a time" and come out as `00:00:00` of that day.
 - An empty result means unknown **or** aged out: show a pending `unknown`,
   never tell the user the code is wrong. A non-`000` result code, a
   non-XML body, a redirect, `403`/`5xx` and a second empty `400` are all
@@ -151,12 +151,33 @@ derives direction from the mode that returned the record, de-duplicates on
 `parcelID` keeping the receiver-side record, and logs once when the same
 `direction` value shows up under both modes. Outgoing parcels fire only the
 outgoing event pair and get no registered or delivery-time events. Per-parcel
-sensors exist for both directions; `awaiting_pickup`, `next_delivery` and the
+sensors exist for both directions; the pickup sensors, `next_delivery` and the
 calendar stay incoming-only.
 
-**No `en_route_to_pickup_point` sensor.** The tracking lookup only learns of a
-pickup point at arrival, so the sensor would sit at zero; `awaiting_pickup` is
-the pickup summary.
+**Both pickup sensors exist: `awaiting_pickup` and `en_route_to_pickup_point`.**
+Meest delivers to branches and lockers, so the pair is exposed even though the
+tracking lookup only learns of a pickup point on arrival: `en_route_to_pickup_point`
+reads 0 for a code-tracked parcel until the account source's `delivery.branch`
+is confirmed on a real account (awaiting data). Both unique ids are in the
+setup's non-parcel set.
+
+**Pickup, delivered and the window follow the parcel contract.**
+- `pickup` is `is_pickup(branch present, status, event statuses)`: the account
+  record's `delivery.branch` (incoming only) first, then any scan or event that
+  mapped to `at_pickup_point`, so it stays `True` after collection. The tracking
+  lookup has no route field, so only the scans decide. `pickup_point` is the
+  branch name, `None` unless `pickup`.
+- `delivered` is `status is DELIVERED`. No Meest code is known to say a return
+  is back at the sender, so a `returning` parcel is never delivered. The
+  account's `factDeliveryDate` only fills `delivered_at` of a delivered parcel;
+  it is not folded into the status because it is unseen and may already be set
+  when the parcel reaches the branch.
+- Times without an offset (scan clocks, the account's date and time-of-day
+  fields) are read in Home Assistant's zone, because Meest spans several
+  countries and foreign legs carry the foreign office's clock. A bare date is
+  `00:00:00`; a moment ends at `23:59:59` the same day, via `planned_window`.
+- The helper block in `parcels.py` (`_moment` through `is_pickup`) is the
+  suite's shared one: do not edit it here.
 
 **The account's `login` is a phone number, not an e-mail**, in international
 form. Sign-up runs on that same number, so an account created on another Meest

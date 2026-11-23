@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import datetime, tzinfo
 import re
 from typing import Any
 
+from homeassistant.util import dt as dt_util
+
 from ..const import HISTORY_MAX_EVENTS, ParcelStatus
-from ..parcels import build_parcel
+from ..parcels import build_parcel, is_pickup
 from ..status import (
     NON_MOVEMENT_CODES,
     clean_code,
@@ -63,17 +66,27 @@ def match_rows(
     return accepted, own
 
 
-def clock_to_iso(value: str | None) -> str | None:
-    """Turn a wall-clock stamp into ISO without inventing a time zone.
+def _zone() -> tzinfo:
+    # Foreign legs carry the foreign office's clock, so no single carrier zone
+    # fits the scans; Home Assistant's zone is the one the user reads them in.
+    return dt_util.get_default_time_zone()
 
-    Foreign legs carry the foreign office's clock, so no single offset fits
-    the history; a timeless day comes out as a bare date.
+
+def clock_to_iso(value: str | None, zone: tzinfo | None = None) -> str | None:
+    """Turn a wall-clock stamp into ISO 8601 with an offset.
+
+    A timeless day (a row stamped at midnight) comes out as ``00:00:00`` of
+    that day.
     """
     match = _CLOCK.match((value or "").strip())
     if match is None:
         return None
     day, clock = match.groups()
-    return day if clock in _TIMELESS else f"{day}T{clock}"
+    zone = zone or _zone()
+    stamp = datetime.fromisoformat(
+        f"{day}T{'00:00:00' if clock in _TIMELESS else clock}"
+    )
+    return stamp.replace(tzinfo=zone).isoformat()
 
 
 def _wording(row: dict[str, str]) -> str | None:
@@ -164,6 +177,15 @@ def normalize_tracking_parcel(
         status=status,
         raw_status=_wording(row) if row else None,
         delivered_at=clock_to_iso(row.get("DateTimeAction")) if row else None,
+        pickup=is_pickup(
+            None,
+            status,
+            (
+                lookup(clean_code(r.get("StatusCode")))
+                for r in rows
+                if clean_code(r.get("StatusCode")) not in NON_MOVEMENT_CODES
+            ),
+        ),
         history=_build_history(rows) if include_history else None,
         raw=raw,
     )

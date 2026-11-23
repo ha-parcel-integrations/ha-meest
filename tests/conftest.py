@@ -1,7 +1,9 @@
 """pytest configuration for the Meest test suite."""
 
 import sys
+from zoneinfo import ZoneInfo
 
+from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.plugins import hass  # noqa: F401
 
@@ -16,6 +18,15 @@ from custom_components.meest.tracking import api as tracking_api
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Make ``custom_components.meest`` loadable from config-flow / setup tests."""
+
+
+@pytest.fixture(autouse=True)
+def default_zone():
+    """Pin a known zone for the pure tests; Home Assistant tests bring their own."""
+    previous = dt_util.get_default_time_zone()
+    dt_util.set_default_time_zone(ZoneInfo("Europe/Amsterdam"))
+    yield
+    dt_util.set_default_time_zone(previous)
 
 
 @pytest.fixture(autouse=True)

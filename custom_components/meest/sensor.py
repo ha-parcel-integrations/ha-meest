@@ -17,6 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from . import MeestConfigEntry
 from .const import DOMAIN, ParcelStatus
@@ -67,6 +68,7 @@ async def async_setup_entry(
     non_parcel_unique_ids = {
         f"{entry_id}_incoming_parcels",
         f"{entry_id}_next_delivery",
+        f"{entry_id}_en_route_to_pickup_point",
         f"{entry_id}_awaiting_pickup",
         f"{entry_id}_delivered_parcels",
         f"{entry_id}_outgoing_parcels",
@@ -95,6 +97,7 @@ async def async_setup_entry(
     entities.extend(
         [
             MeestNextDeliverySensor(coordinator, entry),
+            MeestEnRouteToPickupPointSensor(coordinator, entry),
             MeestAwaitingPickupSensor(coordinator, entry),
             MeestDeliveredParcelsSensor(coordinator, entry),
             MeestOutgoingParcelsSensor(coordinator, entry),
@@ -238,10 +241,14 @@ class MeestNextDeliverySensor(_MeestEntity):
 
     def _delivery_moments(self) -> list[tuple[datetime, dict]]:
         result: list[tuple[datetime, dict]] = []
+        now = dt_util.utcnow()
         for parcel in bucket(self.coordinator.data, "incoming_active"):
             moment = parse_iso(parcel.get("planned_from"))
-            if moment is not None:
-                result.append((moment, parcel))
+            if moment is None:
+                continue
+            if (parse_iso(parcel.get("planned_to")) or moment) < now:
+                continue
+            result.append((moment, parcel))
         return result
 
     @property
@@ -262,6 +269,21 @@ class MeestNextDeliverySensor(_MeestEntity):
             "sender": earliest.get("sender"),
             "receiver": earliest.get("receiver"),
         }
+
+
+class MeestEnRouteToPickupPointSensor(_MeestListSensor):
+    """Incoming parcels destined for a pickup point but not yet there."""
+
+    _attr_translation_key = "en_route_to_pickup_point"
+
+    def _parcels(self) -> list[dict]:
+        return [
+            parcel
+            for parcel in bucket(self.coordinator.data, "incoming_active")
+            if parcel.get("pickup")
+            and parcel.get("status")
+            not in (ParcelStatus.AT_PICKUP_POINT, ParcelStatus.RETURNING)
+        ]
 
 
 class MeestAwaitingPickupSensor(_MeestListSensor):

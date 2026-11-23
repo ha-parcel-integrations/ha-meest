@@ -34,8 +34,7 @@ def test_journey_is_delivered_with_the_entered_code_as_barcode():
     assert parcel["status"] is ParcelStatus.DELIVERED
     assert parcel["delivered"] is True
     assert parcel["raw_status"] == "Delivered"
-    # wall clock, no offset invented
-    assert parcel["delivered_at"] == "2026-10-05T11:37:53"
+    assert parcel["delivered_at"] == "2026-10-05T11:37:53+02:00"
     assert parcel["planned_from"] is None
     assert parcel["url"].endswith(f"/n/{CODE}")
     assert parcel["raw"]["rows"][-1]["Barcode"] == LATE_LABEL
@@ -149,7 +148,7 @@ def test_history_is_oldest_first_capped_and_carries_place():
     history = _normalize(rows, include_history=True)["history"]
     assert len(history) == 20
     assert history[0]["raw_status"] == "Scan 6 (Testville, UKRAINE)"
-    assert history[-1]["timestamp"] == "2026-10-25T10:00:00"
+    assert history[-1]["timestamp"] == "2026-10-25T10:00:00+01:00"
     assert history[-1]["status"] is ParcelStatus.IN_TRANSIT
     assert set(history[0]) == {"timestamp", "status", "raw_status"}
 
@@ -169,14 +168,14 @@ def test_history_skips_rows_without_a_usable_timestamp():
     assert len(_normalize(rows, include_history=True)["history"]) == 1
 
 
-def test_a_day_without_a_time_is_a_bare_date_not_midnight():
-    assert clock_to_iso("2026-10-05 00:00:00") == "2026-10-05"
-    assert clock_to_iso("2026-10-05 00:00:01") == "2026-10-05"
-    assert clock_to_iso("2026-10-05 00:00:02") == "2026-10-05T00:00:02"
+def test_a_day_without_a_time_is_midnight_of_that_day():
+    assert clock_to_iso("2026-10-05 00:00:00") == "2026-10-05T00:00:00+02:00"
+    assert clock_to_iso("2026-10-05 00:00:01") == "2026-10-05T00:00:00+02:00"
+    assert clock_to_iso("2026-10-05 00:00:02") == "2026-10-05T00:00:02+02:00"
     rows = [row("1622", "2026-10-05 00:00:00")]
     parcel = _normalize(rows, include_history=True)
-    assert parcel["delivered_at"] == "2026-10-05"
-    assert parcel["history"][0]["timestamp"] == "2026-10-05"
+    assert parcel["delivered_at"] == "2026-10-05T00:00:00+02:00"
+    assert parcel["history"][0]["timestamp"] == "2026-10-05T00:00:00+02:00"
 
 
 @pytest.mark.parametrize("value", [None, "", "05/10/2026", "2026-10-05"])

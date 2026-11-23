@@ -1,6 +1,7 @@
 """Tests for the shared parcel helpers."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -18,7 +19,9 @@ from custom_components.meest.parcels import (
     apply_delivered_filter,
     build_parcel,
     format_dimensions,
+    is_pickup,
     parse_iso,
+    planned_window,
     sort_parcels_by_ts,
     tracking_url,
 )
@@ -63,16 +66,27 @@ def test_delivered_clears_the_window_and_keeps_delivered_at():
     assert parcel["planned_from"] is None and parcel["planned_to"] is None
 
 
-def test_undelivered_drops_delivered_at_and_pickup_follows_status():
+def test_undelivered_drops_delivered_at_and_an_arrived_parcel_has_no_window():
     parcel = build_parcel(
         barcode="X1",
         status=ParcelStatus.AT_PICKUP_POINT,
         delivered_at="2026-10-05T11:00:00",
         planned_from="2026-10-05T09:00:00",
+        pickup=True,
+        pickup_point="Branch 1",
     )
     assert parcel["delivered_at"] is None
-    assert parcel["planned_from"] == "2026-10-05T09:00:00"
+    assert parcel["planned_from"] is None
     assert parcel["pickup"] is True
+    assert parcel["pickup_point"] == "Branch 1"
+
+
+def test_the_pickup_point_needs_pickup():
+    parcel = build_parcel(
+        barcode="X1", status=ParcelStatus.IN_TRANSIT, pickup_point="B"
+    )
+    assert parcel["pickup"] is False
+    assert parcel["pickup_point"] is None
 
 
 def test_empty_parties_become_none():
@@ -157,3 +171,35 @@ def test_capabilities_are_consistent():
 @pytest.mark.parametrize("key", CANONICAL_KEYS)
 def test_key_is_present(key):
     assert key in build_parcel(barcode=None, status=ParcelStatus.UNKNOWN)
+
+
+def test_planned_window_shapes():
+    zone = ZoneInfo("Europe/Kyiv")
+    assert planned_window(date(2099, 1, 5), None, zone=zone) == (
+        "2099-01-05T00:00:00+02:00",
+        "2099-01-05T23:59:59+02:00",
+    )
+    assert planned_window("2099-01-05", "2099-01-07", zone=zone) == (
+        "2099-01-05T00:00:00+02:00",
+        "2099-01-07T23:59:59+02:00",
+    )
+    assert planned_window(
+        datetime(2099, 1, 5, 10, 0, tzinfo=UTC), "2099-01-05T08:00:00Z", zone=zone
+    ) == ("2099-01-05T08:00:00Z", "2099-01-05T10:00:00+00:00")
+    assert planned_window("junk", "2099-01-05T08:00:00", zone=zone) == (
+        "2099-01-05T08:00:00+02:00",
+        "2099-01-05T23:59:59+02:00",
+    )
+    assert planned_window("junk", 5, zone=zone) == (None, None)
+    assert planned_window(None, None, zone=zone) == (None, None)
+    assert planned_window("2099-01-05T23:59:59", None, zone=zone) == (
+        "2099-01-05T23:59:59+02:00",
+        None,
+    )
+
+
+def test_is_pickup_route_flag_status_and_events():
+    assert is_pickup(True, ParcelStatus.IN_TRANSIT) is True
+    assert is_pickup(None, ParcelStatus.AT_PICKUP_POINT) is True
+    assert is_pickup(None, ParcelStatus.DELIVERED, [None, ParcelStatus.AT_PICKUP_POINT])
+    assert is_pickup(None, ParcelStatus.IN_TRANSIT, [None]) is False

@@ -38,7 +38,7 @@ A custom Home Assistant integration that tracks your [Meest](https://meest.com) 
 - **Tracking codes** — track any number of Meest parcels by tracking number, incoming or outgoing; no account needed
 - **Account** *(unconfirmed)* — sign in with your own Meest login and the parcels **your account owns** are imported automatically; only rotating tokens are stored, never your password. Parcels you merely follow by number in the Meest app are kept on the phone and are not part of the account, so they do not appear here — track those with **Tracking codes**
 - Per-parcel sensor with the canonical status (`registered` / `in_transit` / `out_for_delivery` / `at_pickup_point` / `delivered` / …), the carrier's own status text and a tracking deep-link
-- Summary sensors: incoming parcels, next delivery, awaiting pickup, recently delivered parcels, plus outgoing and delivered outgoing parcels
+- Summary sensors: incoming parcels, next delivery, en route to a pickup point, awaiting pickup, recently delivered parcels, plus outgoing and delivered outgoing parcels
 - Read-only **Deliveries** calendar with expected delivery windows (account source, once confirmed)
 - `meest.track_parcel` / `meest.untrack_parcel` services, so a dashboard button can add a parcel
 - Events + device triggers for no-code automations (parcel registered, status changed, delivered, delivery time changed, plus outgoing status changed and delivered)
@@ -127,6 +127,7 @@ Standard HA removal applies: **Settings → Devices & Services → Meest → ⋮
 | `sensor.meest_incoming_parcels` | Number of active incoming parcels, full list under the `parcels` attribute |
 | `sensor.meest_parcel_<code>` | One per active parcel, incoming or outgoing; state is the canonical status, attributes carry the full normalised parcel |
 | `sensor.meest_next_delivery` | Earliest expected delivery moment across active incoming parcels (account source only: the tracking lookup has no estimate) |
+| `sensor.meest_en_route_to_pickup_point` | Incoming parcels on their way to a pickup point |
 | `sensor.meest_awaiting_pickup` | Incoming parcels that are ready to collect at a pickup point |
 | `sensor.meest_delivered_parcels` | Recently delivered incoming parcels (see the retention option) |
 | `sensor.meest_outgoing_parcels` | Active outgoing parcels |

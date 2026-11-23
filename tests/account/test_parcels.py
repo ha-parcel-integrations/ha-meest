@@ -24,8 +24,8 @@ def test_incoming_record_maps_the_canonical_fields():
     assert parcel["barcode"] == "CV000000001US"
     assert parcel["status"] is ParcelStatus.OUT_FOR_DELIVERY
     assert parcel["raw_status"] == "Handed to the courier"
-    assert parcel["planned_from"] == "2026-10-05T10:00:00"
-    assert parcel["planned_to"] == "2026-10-05T12:00:00"
+    assert parcel["planned_from"] == "2026-10-05T10:00:00+02:00"
+    assert parcel["planned_to"] == "2026-10-05T12:00:00+02:00"
     assert parcel["pickup_point"] == "Branch 12"
     assert parcel["sender"] == "Sender Name"
     assert parcel["receiver"] == "Rec Eiver"
@@ -40,8 +40,8 @@ def test_weight_and_dimensions_stay_none_until_units_are_confirmed():
 
 def test_outgoing_reads_the_sending_block_and_has_no_pickup_point():
     parcel = normalize_account_parcel(account_sent_record(), outgoing=True)
-    assert parcel["planned_from"] == "2026-10-04T14:00:00"
-    assert parcel["planned_to"] == "2026-10-04T16:00:00"
+    assert parcel["planned_from"] == "2026-10-04T14:00:00+02:00"
+    assert parcel["planned_to"] == "2026-10-04T16:00:00+02:00"
     assert parcel["pickup_point"] is None
     assert parcel["status"] is ParcelStatus.IN_TRANSIT
 
@@ -54,22 +54,22 @@ def test_outgoing_without_a_window_gets_no_estimated_date():
 
 def test_estimated_date_alone_fills_planned_from_for_incoming():
     parcel = _in(account_record(delivery={"branch": "B"}))
-    assert parcel["planned_from"] == "2026-10-05"
-    assert parcel["planned_to"] is None
+    assert parcel["planned_from"] == "2026-10-05T00:00:00+02:00"
+    assert parcel["planned_to"] == "2026-10-05T23:59:59+02:00"
     assert parcel["pickup_point"] == "B"
 
 
-def test_full_timestamps_pass_through_and_equal_bounds_collapse():
+def test_full_timestamps_pass_through_and_equal_bounds_are_one_moment():
     block = {"timeFrom": "2026-10-05T10:00:00", "timeTo": "2026-10-05T10:00:00"}
     parcel = _in(account_record(delivery=block))
-    assert parcel["planned_from"] == "2026-10-05T10:00:00"
-    assert parcel["planned_to"] is None
+    assert parcel["planned_from"] == "2026-10-05T10:00:00+02:00"
+    assert parcel["planned_to"] == "2026-10-05T23:59:59+02:00"
 
 
 def test_time_of_day_with_seconds_and_unusable_bounds():
     parcel = _in(account_record(delivery={"timeFrom": "9:05:30", "timeTo": "late"}))
-    assert parcel["planned_from"] == "2026-10-05T09:05:30"
-    assert parcel["planned_to"] is None
+    assert parcel["planned_from"] == "2026-10-05T09:05:30+02:00"
+    assert parcel["planned_to"] == "2026-10-05T23:59:59+02:00"
     parcel = _in(
         account_record(estimatedDeliveryDate=None, delivery={"timeFrom": "10:00"})
     )
@@ -81,7 +81,7 @@ def test_delivered_uses_fact_date_and_drops_the_window():
         account_record(statusCode="1622", factDeliveryDate="2026-10-05T11:30:00")
     )
     assert parcel["delivered"] is True
-    assert parcel["delivered_at"] == "2026-10-05T11:30:00"
+    assert parcel["delivered_at"] == "2026-10-05T11:30:00+02:00"
     assert parcel["planned_from"] is None
 
 
@@ -161,8 +161,8 @@ def test_history_is_opt_in_ordered_and_capped():
         "history"
     ]
     assert [h["timestamp"] for h in history] == [
-        "2026-10-01T09:00:00",
-        "2026-10-02T10:00:00",
+        "2026-10-01T09:00:00+02:00",
+        "2026-10-02T10:00:00+02:00",
     ]
     assert history[0]["raw_status"] == "Created (Testville, UA)"
     assert history[0]["status"] is ParcelStatus.REGISTERED
@@ -182,7 +182,7 @@ def test_history_skips_undated_events_and_corrections():
     ]
     history = _in(account_record(), events=events, include_history=True)["history"]
     assert history == [
-        {"timestamp": "2026-10-04T10:00:00", "status": None, "raw_status": None}
+        {"timestamp": "2026-10-04T10:00:00+02:00", "status": None, "raw_status": None}
     ]
 
 
