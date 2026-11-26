@@ -45,6 +45,7 @@ def test_unavailable_fields_stay_none():
     for key in (
         "sender",
         "receiver",
+        "contents",
         "pickup_point",
         "weight",
         "dimensions",

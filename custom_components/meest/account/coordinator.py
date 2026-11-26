@@ -12,6 +12,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from ..const import DOMAIN
+from ..contents import normalize_code
 from ..coordinator import Buckets, MeestCoordinator
 from ..status import clean_code
 from .client import MeestAccountApiError, MeestAccountClient, MeestAccountReauthRequired
@@ -123,13 +124,20 @@ class MeestAccountCoordinator(MeestCoordinator):
         incoming: list[dict] = []
         outgoing: list[dict] = []
         for (_, is_outgoing), (record, events) in zip(records, enriched, strict=True):
-            parcel = normalize_account_parcel(
-                record,
-                outgoing=is_outgoing,
-                events=events,
-                include_history=include_history,
+            parcel = self._apply_contents(
+                normalize_account_parcel(
+                    record,
+                    outgoing=is_outgoing,
+                    events=events,
+                    include_history=include_history,
+                )
             )
             (outgoing if is_outgoing else incoming).append(parcel)
 
+        self.known_codes = frozenset(
+            normalize_code(parcel["barcode"])
+            for parcel in (*incoming, *outgoing)
+            if parcel["barcode"]
+        )
         self._stamp_success()
         return self._publish(incoming, outgoing)

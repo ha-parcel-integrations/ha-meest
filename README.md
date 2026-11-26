@@ -186,10 +186,13 @@ Every payload is the full normalised parcel plus the entry's `device_id`. Events
 
 | Service | Fields | Description |
 |---|---|---|
-| `meest.track_parcel` | `tracking_code`, `direction` (`incoming` default, or `outgoing`) | Start tracking a parcel; tracking it again with the other direction moves it |
+| `meest.track_parcel` | `tracking_code`, `direction` (`incoming` default, or `outgoing`), `contents` (optional) | Start tracking a parcel, optionally noting what is in it; tracking it again with the other direction moves it |
 | `meest.untrack_parcel` | `tracking_code` | Stop tracking a parcel |
+| `meest.update_contents` | `tracking_code`, `contents`, `config_entry_id` (optional) | Set what is in a parcel, tracked or not; an empty `contents` clears it. It goes to every account or hub that lists the code; name one with `config_entry_id` (needed for a code none lists yet). |
 
-The services act on the tracking-codes entry; an account entry has no code list.
+`track_parcel` and `untrack_parcel` act on the tracking-codes entry only; an account entry has no code list. `update_contents` works with any set-up entry.
+
+The `contents` text you set titles the parcel's calendar event and shows on the next-delivery sensor.
 
 ## Examples
 

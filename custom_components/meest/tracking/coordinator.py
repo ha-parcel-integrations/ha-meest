@@ -18,6 +18,7 @@ from ..const import (
     DIRECTION_OUTGOING,
     DOMAIN,
 )
+from ..contents import normalize_code
 from ..coordinator import Buckets, MeestCoordinator
 from .api import MeestApiError, MeestTrackingClient
 from .parcels import normalize_tracking_parcel
@@ -60,6 +61,7 @@ class MeestTrackingCoordinator(MeestCoordinator):
     async def _async_poll(self) -> Buckets:
         directions = self._tracked()
         codes = list(directions)
+        self.known_codes = frozenset(normalize_code(code) for code in directions)
         self._raw_cache = {c: r for c, r in self._raw_cache.items() if c in directions}
         self._delivered_codes &= set(codes)
 
@@ -111,8 +113,10 @@ class MeestTrackingCoordinator(MeestCoordinator):
 
         include_history = self.include_history
         parcels = {
-            code: normalize_tracking_parcel(
-                raw, code=code, include_history=include_history
+            code: self._apply_contents(
+                normalize_tracking_parcel(
+                    raw, code=code, include_history=include_history
+                )
             )
             for code, raw in raws.items()
         }

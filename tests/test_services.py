@@ -96,6 +96,6 @@ async def test_services_need_a_tracking_entry(hass):
         await hass.services.async_call(
             DOMAIN, "track_parcel", {"tracking_code": CODE}, blocking=True
         )
-    async_unload_services(hass)
-    async_unload_services(hass)
+    async_unload_services(hass, hubs_left=False, entries_left=False)
+    async_unload_services(hass, hubs_left=False, entries_left=False)
     assert not hass.services.has_service(DOMAIN, "track_parcel")

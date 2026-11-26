@@ -20,6 +20,7 @@ from .const import (
     SOURCE_ACCOUNT,
     SOURCE_TRACKING,
 )
+from .contents import ContentsStore
 from .coordinator import MeestCoordinator
 from .services import async_setup_services, async_unload_services
 from .tracking.api import MeestTrackingClient
@@ -74,6 +75,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MeestConfigEntry) -> boo
 
     # First refresh here, before forwarding: a transient failure then fails the
     # whole entry so HA retries it, instead of half-setting-up a platform.
+    await coordinator.contents_store.async_load()
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = MeestData(
@@ -86,8 +88,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MeestConfigEntry) -> boo
     # It is also the resume path after polling suspended with nothing to track.
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
-    if _is_tracking(entry):
-        async_setup_services(hass)
+    async_setup_services(hass, hub=_is_tracking(entry))
     return True
 
 
@@ -104,14 +105,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: MeestConfigEntry) -> bo
     """Unload a Meest config entry."""
     if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         return False
-    # The services belong to the tracking entry, so they go away with it
-    # rather than with the last entry of any kind.
-    others_loaded = any(
-        other.entry_id != entry.entry_id
-        and other.state is ConfigEntryState.LOADED
-        and _is_tracking(other)
+    # Drop a service when the last entry that needs it goes, so unloading one
+    # entry never breaks the others.
+    others = [
+        other
         for other in hass.config_entries.async_entries(DOMAIN)
-    )
-    if _is_tracking(entry) and not others_loaded:
-        async_unload_services(hass)
+        if other.entry_id != entry.entry_id and other.state is ConfigEntryState.LOADED
+    ]
+    hubs_left = any(_is_tracking(other) for other in others)
+    async_unload_services(hass, hubs_left=hubs_left, entries_left=bool(others))
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: MeestConfigEntry) -> None:
+    """Delete the entry's stored contents."""
+    await ContentsStore(hass, entry.entry_id).async_remove()

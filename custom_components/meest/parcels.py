@@ -193,6 +193,7 @@ def build_parcel(
         "barcode": barcode,
         "sender": sender or None,
         "receiver": receiver or None,
+        "contents": None,
         "status": status,
         "raw_status": raw_status,
         "delivered": delivered,

@@ -13,7 +13,7 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -29,6 +29,7 @@ from .const import (
     STAGGER_MINUTES,
     ParcelStatus,
 )
+from .contents import ContentsStore
 from .events import (
     fire_incoming_change_events,
     fire_outgoing_change_events,
@@ -131,6 +132,10 @@ class MeestCoordinator(DataUpdateCoordinator[Buckets]):
             name=name,
             update_interval=timedelta(minutes=HOT_INTERVAL_MINUTES),
         )
+        self.contents_store = ContentsStore(hass, entry.entry_id)
+        # Every code this entry lists, delivered ones past the retention filter
+        # included: update_contents asks which entry a code belongs to.
+        self.known_codes: frozenset[str] = frozenset()
         self._consecutive_429 = 0
         self._current_tier_minutes: int | None = None
         # ``None`` on the first refresh suppresses events for parcels that
@@ -175,6 +180,22 @@ class MeestCoordinator(DataUpdateCoordinator[Buckets]):
         if device is not None:
             self._cached_device_id = device.id
         return self._cached_device_id
+
+    def _apply_contents(self, parcel: dict) -> dict:
+        """Put the user's own contents text over the carrier's, when there is one."""
+        user_value = self.contents_store.get(parcel["barcode"])
+        if user_value is not None:
+            parcel["contents"] = user_value
+        return parcel
+
+    @callback
+    def async_reapply_contents(self) -> None:
+        """Re-read the contents store into the published parcels, without a poll."""
+        for parcels in (self.data or {}).values():
+            for parcel in parcels:
+                parcel["contents"] = None
+                self._apply_contents(parcel)
+        self.async_update_listeners()
 
     async def _async_update_data(self) -> Buckets:
         try:

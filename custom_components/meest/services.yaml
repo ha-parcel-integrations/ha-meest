@@ -13,6 +13,11 @@ track_parcel:
             - "incoming"
             - "outgoing"
           translation_key: direction
+    contents:
+      required: false
+      example: "Running shoes"
+      selector:
+        text:
 
 untrack_parcel:
   fields:
@@ -21,3 +26,21 @@ untrack_parcel:
       example: "AB1234567CD00010G"
       selector:
         text:
+
+update_contents:
+  fields:
+    tracking_code:
+      required: true
+      example: "AB1234567CD00010G"
+      selector:
+        text:
+    contents:
+      required: false
+      example: "Running shoes"
+      selector:
+        text:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: meest
